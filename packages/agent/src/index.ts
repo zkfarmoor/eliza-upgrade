@@ -17,7 +17,7 @@ import {
 import { bootstrapPlugin } from "@ai16z/plugin-bootstrap";
 import { solanaPlugin } from "@ai16z/plugin-solana";
 import { nodePlugin } from "@ai16z/plugin-node";
-import { evmPlugin } from "@ai16z/plugin-evm";
+import { EvmPlugin } from "@ai16z/plugin-evm";
 import Database from "better-sqlite3";
 import fs from "fs";
 import readline from "readline";
@@ -171,7 +171,12 @@ export async function createDirectRuntime(
         modelProvider: character.modelProvider,
         evaluators: [],
         character,
-        plugins: [],
+        plugins: [
+            bootstrapPlugin,
+            nodePlugin,
+            character.settings.secrets?.WALLET_PUBLIC_KEY ? solanaPlugin : null,
+            character.settings.secrets?.EVM_PRIVATE_KEY ? new EvmPlugin() : null,
+        ].filter(Boolean),
         providers: [],
         actions: [],
         services: [],
@@ -235,7 +240,7 @@ export async function createAgent(
             bootstrapPlugin,
             nodePlugin,
             character.settings.secrets?.WALLET_PUBLIC_KEY ? solanaPlugin : null,
-            character.settings.secrets?.EVM_PRIVATE_KEY ? evmPlugin : null,
+            character.settings.secrets?.EVM_PRIVATE_KEY ? new EvmPlugin() : null,
         ].filter(Boolean),
         providers: [],
         actions: [],

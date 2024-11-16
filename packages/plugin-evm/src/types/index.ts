@@ -87,3 +87,10 @@ export type LiFiExecutionResult = {
   toAddress: Address
   status: LiFiStatus
 }
+
+export type SwapContext = {
+  fromToken: Address
+  toToken: Address
+  amount: string
+  chain: SupportedChain
+}
