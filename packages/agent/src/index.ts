@@ -1,6 +1,6 @@
 import { PostgresDatabaseAdapter } from "@ai16z/adapter-postgres";
 import { SqliteDatabaseAdapter } from "@ai16z/adapter-sqlite";
-import { DirectClientInterface } from "@ai16z/client-direct";
+import { DirectClient, DirectClientInterface } from "@ai16z/client-direct";
 import { DiscordClientInterface } from "@ai16z/client-discord";
 import { AutoClientInterface } from "@ai16z/client-auto";
 import { TelegramClientInterface } from "@ai16z/client-telegram";
@@ -17,6 +17,7 @@ import {
 import { bootstrapPlugin } from "@ai16z/plugin-bootstrap";
 import { solanaPlugin } from "@ai16z/plugin-solana";
 import { nodePlugin } from "@ai16z/plugin-node";
+import { evmPlugin } from "@ai16z/plugin-evm";
 import Database from "better-sqlite3";
 import fs from "fs";
 import readline from "readline";
@@ -234,6 +235,7 @@ export async function createAgent(
             bootstrapPlugin,
             nodePlugin,
             character.settings.secrets?.WALLET_PUBLIC_KEY ? solanaPlugin : null,
+            character.settings.secrets?.EVM_PRIVATE_KEY ? evmPlugin : null,
         ].filter(Boolean),
         providers: [],
         actions: [],
@@ -267,11 +269,12 @@ async function startAgent(character: Character, directClient: any) {
 }
 
 const startAgents = async () => {
-    const directClient = await DirectClientInterface.start();
+    const directClient = new DirectClient();
+    const serverPort = parseInt(settings.SERVER_PORT || "3000");
+    directClient.start(serverPort);
+
     const args = parseArguments();
-
     let charactersArg = args.characters || args.character;
-
     let characters = [defaultCharacter];
 
     if (charactersArg) {
@@ -291,7 +294,7 @@ const startAgents = async () => {
         rl.question("You: ", async (input) => {
             await handleUserInput(input, agentId);
             if (input.toLowerCase() !== "exit") {
-                chat(); // Loop back to ask another question
+                chat();
             }
         });
     }

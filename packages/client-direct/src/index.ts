@@ -69,6 +69,23 @@ export class DirectClient {
         this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
 
+        // Add root route handler
+        this.app.get("/", (req, res) => {
+            const agents = Array.from(this.agents.values()).map(agent => ({
+                id: agent.agentId,
+                name: agent.character.name
+            }));
+            res.json({
+                status: "ok",
+                agents,
+                endpoints: {
+                    message: "/:agentId/message",
+                    whisper: "/:agentId/whisper",
+                    image: "/:agentId/image"
+                }
+            });
+        });
+
         // Define an interface that extends the Express Request interface
         interface CustomRequest extends ExpressRequest {
             file: File;
@@ -286,7 +303,7 @@ export class DirectClient {
 
 export const DirectClientInterface: Client = {
     start: async (runtime: IAgentRuntime) => {
-        console.log("DirectClientInterface start");
+        console.warn("DirectClientInterface.start is deprecated. Use new DirectClient() instead.");
         const client = new DirectClient();
         const serverPort = parseInt(settings.SERVER_PORT || "3000");
         client.start(serverPort);
