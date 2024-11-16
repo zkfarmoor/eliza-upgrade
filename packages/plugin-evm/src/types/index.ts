@@ -1,4 +1,4 @@
-import type { Address, Hash } from 'viem'
+import type { Address, Hash, ByteArray, Chain, SendTransactionParameters } from 'viem'
 
 // Chain types
 export type SupportedChain = 'ethereum' | 'base'
@@ -20,6 +20,8 @@ export interface Transaction {
   value: bigint
   data?: `0x${string}`
 }
+
+export type TransactionRequest = Omit<SendTransactionParameters<Chain>, 'account' | 'chain'>
 
 export interface TransactionReceipt {
   transactionHash: Hash

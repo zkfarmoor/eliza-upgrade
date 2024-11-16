@@ -1,58 +1,68 @@
-import { LiFi } from '@lifi/sdk'
+import type { Route, RoutesRequest, TransactionRequest as LiFiTransactionRequest } from '@lifi/types'
 import type { WalletProvider } from '../providers/wallet'
-import type { Transaction, BridgeParams, LiFiStatus } from '../types'
+import type { Transaction, BridgeParams } from '../types'
 import { CHAIN_CONFIGS } from '../providers/wallet'
+import { ByteArray, type Hex } from 'viem'
 
 export class BridgeAction {
-  private lifi: LiFi
-
-  constructor(private walletProvider: WalletProvider) {
-    this.lifi = new LiFi({
-      integrator: 'eliza-evm-plugin'
-    })
-  }
+  constructor(private walletProvider: WalletProvider) {}
 
   async bridge(params: BridgeParams): Promise<Transaction> {
-    const [fromAddress] = await this.walletProvider.getWalletClient().getAddresses()
+    const walletClient = this.walletProvider.getWalletClient()
+    const [fromAddress] = await walletClient.getAddresses()
 
     await this.walletProvider.switchChain(params.fromChain)
 
-    const { routes } = await this.lifi.getRoutes({
+    const routeRequest: RoutesRequest = {
       fromChainId: CHAIN_CONFIGS[params.fromChain].chainId,
       toChainId: CHAIN_CONFIGS[params.toChain].chainId,
       fromTokenAddress: params.fromToken,
       toTokenAddress: params.toToken,
       fromAmount: params.amount,
-      fromAddress,
+      fromAddress: fromAddress,
       toAddress: params.toAddress,
       options: {
         slippage: 0.5,
         order: 'RECOMMENDED',
         allowSwitchChain: true
       }
+    }
+
+    const response = await fetch('https://li.quest/v1/routes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(routeRequest)
     })
 
+    const { routes } = await response.json()
     if (!routes.length) throw new Error('No routes found')
 
+    const route = routes[0] as Route
+    const lifiTxRequest = route.steps[0].transactionRequest as LiFiTransactionRequest
+
     try {
-      const result = await this.lifi.executeRoute(
-        this.walletProvider.getWalletClient(),
-        routes[0],
-        {
-          updateCallback: (status: LiFiStatus) => {
-            if (status.status === 'FAILED') {
-              throw new Error(`Bridge failed: ${status.error?.message || 'Unknown error'}`)
-            }
+      const hash = await walletClient.sendTransaction({
+        account: fromAddress,
+        to: lifiTxRequest.to as Hex,
+        data: lifiTxRequest.data as Hex,
+        value: BigInt(lifiTxRequest.value || 0),
+        kzg: {
+          blobToKzgCommitment: function (blob: ByteArray): ByteArray {
+            throw new Error('Function not implemented.')
+          },
+          computeBlobKzgProof: function (blob: ByteArray, commitment: ByteArray): ByteArray {
+            throw new Error('Function not implemented.')
           }
-        }
-      )
+        },
+        chain: undefined
+      })
 
       return {
-        hash: result.transactionHash,
+        hash,
         from: fromAddress,
-        to: params.toAddress,
+        to: lifiTxRequest.to as Hex,
         value: BigInt(params.amount),
-        data: result.transactionData
+        data: lifiTxRequest.data as Hex
       }
     } catch (error) {
       throw new Error(`Bridge failed: ${error.message}`)

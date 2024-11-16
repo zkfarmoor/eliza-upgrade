@@ -1,4 +1,4 @@
-import { parseEther, type Hash, type ByteArray } from 'viem'
+import { ByteArray, parseEther, type Hex } from 'viem'
 import type { WalletProvider } from '../providers/wallet'
 import type { Transaction, TransferParams } from '../types'
 
@@ -7,33 +7,36 @@ export class TransferAction {
 
   async transfer(params: TransferParams): Promise<Transaction> {
     const walletClient = this.walletProvider.getWalletClient()
-    const [from] = await walletClient.getAddresses()
+    const [fromAddress] = await walletClient.getAddresses()
 
-    // Switch to correct chain if needed
-    if (this.walletProvider.getCurrentChain().id !== params.fromChain) {
-      await this.walletProvider.switchChain(params.fromChain)
-    }
+    await this.walletProvider.switchChain(params.fromChain)
 
-    // Prepare transaction parameters
-    const txParams = {
-      to: params.toAddress,
-      value: parseEther(params.amount),
-      data: params.data,
-      // Add kzg for EIP-4844 compatibility
-      kzg: {
-        blobToKzgCommitment: (blob: ByteArray): ByteArray => blob,
-        computeBlobKzgProof: (blob: ByteArray, commitment: ByteArray): ByteArray => blob
+    try {
+      const hash = await walletClient.sendTransaction({
+        account: fromAddress,
+        to: params.toAddress,
+        value: parseEther(params.amount),
+        data: params.data as Hex,
+        kzg: {
+          blobToKzgCommitment: function (blob: ByteArray): ByteArray {
+            throw new Error('Function not implemented.')
+          },
+          computeBlobKzgProof: function (blob: ByteArray, commitment: ByteArray): ByteArray {
+            throw new Error('Function not implemented.')
+          }
+        },
+        chain: undefined
+      })
+
+      return {
+        hash,
+        from: fromAddress,
+        to: params.toAddress,
+        value: parseEther(params.amount),
+        data: params.data as Hex
       }
-    } as const
-
-    const hash = await walletClient.sendTransaction(txParams)
-
-    return {
-      hash,
-      from,
-      to: params.toAddress,
-      value: parseEther(params.amount),
-      data: params.data
+    } catch (error) {
+      throw new Error(`Transfer failed: ${error.message}`)
     }
   }
 }

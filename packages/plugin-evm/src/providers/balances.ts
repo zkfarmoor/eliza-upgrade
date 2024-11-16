@@ -1,5 +1,5 @@
 import { formatUnits } from 'viem'
-import { LiFi } from '@lifi/sdk'
+import type { Token } from '@lifi/types'
 import { CHAIN_CONFIGS } from './wallet'
 import type { TokenProvider } from './token'
 
@@ -18,23 +18,15 @@ interface WalletBalance {
 }
 
 export class BalancesProvider {
-  private lifi: LiFi
-
   constructor(
     private tokenProvider: TokenProvider,
     private walletAddress: string
-  ) {
-    this.lifi = new LiFi({
-      integrator: 'eliza-evm-plugin'
-    })
-  }
+  ) {}
 
   async getWalletBalances(chains: ('ethereum' | 'base')[]): Promise<WalletBalance[]> {
     const balances = await Promise.all(
       chains.map(async (chain) => {
-        const tokens = await this.lifi.getTokens({
-          chains: [CHAIN_CONFIGS[chain].chainId]
-        })
+        const tokens = await this.tokenProvider.getTokens(chain)
 
         const tokenBalances = await Promise.all(
           tokens.map(async (token) => {

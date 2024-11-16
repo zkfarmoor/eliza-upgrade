@@ -1,16 +1,9 @@
 import { type PublicClient, formatUnits } from 'viem'
-import { LiFi } from '@lifi/sdk'
-import type { Token } from '@lifi/sdk'
+import type { Token } from '@lifi/types'
 import { CHAIN_CONFIGS } from './wallet'
 
 export class TokenProvider {
-  private lifi: LiFi
-
-  constructor(private publicClients: Record<string, PublicClient>) {
-    this.lifi = new LiFi({
-      integrator: 'eliza-evm-plugin'
-    })
-  }
+  constructor(private publicClients: Record<string, PublicClient>) {}
 
   async getTokenBalance(params: {
     chain: 'ethereum' | 'base'
@@ -37,15 +30,14 @@ export class TokenProvider {
   }
 
   async getTokenData(chain: 'ethereum' | 'base', tokenAddress: string): Promise<Token> {
-    const token = await this.lifi.getToken(CHAIN_CONFIGS[chain].chainId, tokenAddress)
-    if (!token) throw new Error(`Token not found: ${tokenAddress} on ${chain}`)
-    return token
+    const response = await fetch(`https://li.quest/v1/token?chain=${CHAIN_CONFIGS[chain].chainId}&token=${tokenAddress}`)
+    const data = await response.json()
+    return data.token
   }
 
   async getTokens(chain: 'ethereum' | 'base'): Promise<Token[]> {
-    return await this.lifi.getTokens({
-      chains: [CHAIN_CONFIGS[chain].chainId],
-      include: ['POPULAR']
-    })
+    const response = await fetch(`https://li.quest/v1/tokens?chains=${CHAIN_CONFIGS[chain].chainId}&include=POPULAR`)
+    const data = await response.json()
+    return data.tokens
   }
 }
